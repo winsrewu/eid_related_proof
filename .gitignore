@@ -1,0 +1,10 @@
+/.lake
+/.vscode
+__pycache__/
+
+/.qwen/tmp/
+/.qwen/settings.json
+
+/BasicRedstoneSim/Tests.lean
+
+test_*.lean
