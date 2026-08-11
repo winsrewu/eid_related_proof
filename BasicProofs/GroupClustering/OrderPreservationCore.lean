@@ -26,7 +26,7 @@ The group-vs-group output order is spec-independent. The argument:
     stage index, so the second index is reconciled via the shared spec
     (`h_spec`) before both are rewritten to `finalEventOf` (`h_feq`), and
     `evBefore.filter` moves to the due filter. -/
-private theorem evBefore_finals_of_burst (groups : List GroupSpec)
+theorem evBefore_finals_of_burst (groups : List GroupSpec)
     (actTick : Nat → Nat) (groupOrd : List Nat)
     (withinOrd pos : Nat → List Nat) (T : Nat)
     (h_uniform : ∀ gi (c₁ c₂ : ChainSpec), gi < groups.length →

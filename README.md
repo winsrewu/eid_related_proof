@@ -77,6 +77,30 @@ These choices are arbitrary:
   A before B. The relative order of two groups does not depend on the
   spec used to observe it.
 
+### Round-robin activation
+
+A round-robin group is a list of chains with identical `ChainSpec`.
+All groups that activate on the same tick fire in one atomic
+round-robin batch: round `k` enqueues the observer event of the `k`-th
+chain of every group, in a fixed group order (`groupOrd`); exhausted
+groups drop out; no queue processing happens inside the batch.
+
+`groupSimulateRR` is defined as the ordinary group simulation on
+singleton-split groups: every bundle chain becomes a one-chain group,
+and the singletons are activated in the round-robin enumeration order
+with no queue insertion. The two capstone theorems in
+`BasicProofs.GroupClustering.RoundRobinTheorems` follow from the
+group-clustering cores applied to this split system:
+
+- **Clustering** — `group_rr_output_clustering`: identical-spec
+  bundle-chain outputs are contiguous in the round-robin output order.
+- **Order preservation** — `group_rr_order_preservation`: for two
+  same-spec bundle chains, the output order is exactly the
+  round-robin activation order (`rrBefore`): round (chain index)
+  first, then position in `groupOrd`. The equivalence is strict:
+  output position `p₁ < p₂` if and only if the first chain activates
+  before the second.
+
 ## Repository layout
 
 ```
@@ -84,8 +108,9 @@ BasicRedstoneSim/Basic.lean     the redstone model
 BasicProofs.lean                library root
 BasicProofs/PrefixChain/        prefix chain development (Part01 to
                                 Part17, plus Basic)
-BasicProofs/GroupClustering/    n-group development (76 named modules,
-                                plus Basic)
+BasicProofs/GroupClustering/    group clustering and round-robin
+                                development (78 named modules, plus
+                                Basic)
 python/                         reference implementation and test
                                 generator
 Main.lean                       executable entry point
