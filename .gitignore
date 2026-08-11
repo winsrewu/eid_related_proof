@@ -8,3 +8,5 @@ __pycache__/
 /BasicRedstoneSim/Tests.lean
 
 test_*.lean
+
+.agents
