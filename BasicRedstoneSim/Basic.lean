@@ -276,7 +276,7 @@ private theorem step_tick (w : World) :
     rw [← h, onScheduledTick_tick, popNextEvent_tick w ev w'' h_pop]
 
 /-- `onNeighborUpdate` appends at most one event, always at a future tick (PNat delay). -/
-private theorem onNeighborUpdate_events_append (w : World) (id : Nat) :
+theorem onNeighborUpdate_events_append (w : World) (id : Nat) :
     ∃ new_events, (w.onNeighborUpdate id).events = w.events ++ new_events ∧
     ∀ ev ∈ new_events, ev.targetTick > w.tick := by
   cases h_getNode : w.getNode id
@@ -305,7 +305,7 @@ private theorem onNeighborUpdate_events_append (w : World) (id : Nat) :
       · simp
 
 /-- foldl of `onNeighborUpdate` appends events at future ticks. -/
-private theorem foldl_onNeighborUpdate_events_append (l : List Nat) (w : World) :
+theorem foldl_onNeighborUpdate_events_append (l : List Nat) (w : World) :
     ∃ new_events, (l.foldl (fun w' outId => w'.onNeighborUpdate outId) w).events = w.events ++ new_events ∧
     ∀ ev ∈ new_events, ev.targetTick > w.tick := by
   induction l generalizing w with
@@ -324,7 +324,7 @@ private theorem foldl_onNeighborUpdate_events_append (l : List Nat) (w : World) 
       | inr h => rw [h_tick'] at h_fut_tl; exact h_fut_tl ev h
 
 /-- `onScheduledTick` appends events at future ticks only. -/
-private theorem onScheduledTick_events_append (w : World) (id : Nat) :
+theorem onScheduledTick_events_append (w : World) (id : Nat) :
     ∃ new_events, (w.onScheduledTick id).events = w.events ++ new_events ∧
     ∀ ev ∈ new_events, ev.targetTick > w.tick := by
   unfold onScheduledTick
@@ -364,7 +364,7 @@ private theorem onScheduledTick_events_append (w : World) (id : Nat) :
     | input => exact ⟨[], by simp, by simp⟩
 
 /-- `onScheduledTick` preserves `countEventAtThisTick` at the world's tick. -/
-private theorem onScheduledTick_countEventAtThisTick (w : World) (id : Nat) :
+theorem onScheduledTick_countEventAtThisTick (w : World) (id : Nat) :
     countEventAtThisTick (w.onScheduledTick id) w.tick = countEventAtThisTick w w.tick := by
   obtain ⟨new_events, h_app, h_fut⟩ := onScheduledTick_events_append w id
   dsimp [countEventAtThisTick]
@@ -377,7 +377,7 @@ private theorem onScheduledTick_countEventAtThisTick (w : World) (id : Nat) :
   simp [h_empty]
 
 /-- `popNextEvent` selects an event at the current tick and removes it via `eraseIdx`. -/
-private theorem popNextEvent_eraseIdx (w : World) (ev : ScheduledEvent) (w' : World)
+theorem popNextEvent_eraseIdx (w : World) (ev : ScheduledEvent) (w' : World)
     (h : popNextEvent w = some (ev, w')) :
     ∃ (idx : Nat) (h_idx : idx < w.events.length),
     w'.events = w.events.eraseIdx idx ∧
@@ -420,7 +420,7 @@ lemma popNextEvent_remove_one_current_tick_event_if_some (w : World) (ev : Sched
     omega
 
 /-- One `step` decreases `countEventAtThisTick` at the current tick. -/
-private theorem step_decreases_count (w w' : World) (h : w.step = some w') :
+theorem step_decreases_count (w w' : World) (h : w.step = some w') :
     countEventAtThisTick w' w'.tick < countEventAtThisTick w w.tick := by
   dsimp [step] at h
   cases h_pop : w.popNextEvent with

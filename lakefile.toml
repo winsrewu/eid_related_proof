@@ -8,6 +8,9 @@ name = "BasicRedstoneSim"
 [[lean_lib]]
 name = "BasicProofs"
 
+[[lean_lib]]
+name = "Proofs"
+
 [[lean_exe]]
 name = "main"
 root = "Main"

@@ -1,137 +1,165 @@
-# Entity ID Based Wireless Redstone Related Proofs
+# Entity ID Based Wireless Redstone Proofs
 
-This repository contains Lean 4 proofs of the redstone scheduling
-properties that entity-ID (EID) based wireless redstone relies on. The
-proofs use Mathlib v4.32.0.
+This repository uses the Lean 4 proof assistant. It proves four facts
+about redstone repeater chains. Entity-ID based wireless redstone
+depends on these facts.
 
-## Model
+## Read this first: what a chain is
 
-`BasicRedstoneSim` defines a deterministic, tick-accurate model of
-Minecraft redstone. The model has these parts:
+You do not need to know redstone to read this section.
 
-- `World`: nodes and a priority queue of scheduled events. The nodes
-  are inputs, observers, repeaters with configurable delays, and
-  outputs.
-- `stepUntilNextTick`: processes all events of the current tick, then
-  advances the tick. The termination proof uses the event structure
-  and no fuel parameter.
-- Repeater, observer, and input semantics that match the in-game
-  behavior.
+A redstone signal is a short pulse of power.
 
-The model has 51 simulation tests. `python/gen_tests.py` generates
-these tests from an independent Python implementation of the same
-mechanics (`python/basic_redstone_sim.py`).
+A repeater is a block. It receives a signal. It waits for a fixed time.
+Then it sends the signal on. That wait is a delay. In this model, a
+delay is 2, 4, 6, or 8 game ticks.
 
-## What is proved
+A chain is a line of parts. The line starts with an observer. The
+observer detects a change and starts the signal. Then the signal passes
+through a row of repeaters. Each repeater adds its delay. The line ends
+with an output. The output lights when the signal reaches it.
 
-### Prefix chains
+A priority is a number from -3 to -1. When two repeaters fire at the
+same tick, the priority breaks the tie.
 
-A *prefix chain* is a wire of this shape:
+A spec is the list of delays and priorities of the repeaters in a
+chain. Two chains have the same spec when their repeaters match, in
+order.
+
+The activation order is the order in which the chains start.
+
+The output log is the list of outputs, in the order that they light.
+The output position of a chain is its place in that log.
+
+## The four facts
+
+The four facts are theorems in the `Proofs` library. Each fact assumes
+a valid system. In a valid system, every chain is valid. All the chains
+finish on one common tick.
+
+### Clustering
+
+Suppose that two chains have the same spec. Suppose that a third chain
+lights its output after the first chain and before the second chain.
+Then the third chain has the same spec too.
+
+In other words, chains with the same spec light as one block. No chain
+with a different spec can split that block.
+
+### Order preservation
+
+Chains with the same spec light in the same order as their activation
+order.
+
+### Suffix clustering
+
+The last `n` repeaters of a chain form its `n`-suffix. Two chains share
+a suffix when their last `n` repeaters match.
+
+Suppose that two chains share their last `n` repeaters. Suppose that a
+third chain lights its output after the first chain and before the
+second chain. Then the third chain also shares those last `n` repeaters.
+
+### Suffix order preservation
+
+Chains that share their last `n` repeaters light in the order in which
+their first shared repeater enters the queue.
+
+## Technical details
+
+### The no-group model
+
+The `Proofs` library uses the no-group model. In this model, the chains
+activate one at a time. Between two activations, the simulator
+processes any number of events from the queue. All the chains finish on
+one common tick `T`.
+
+### The simulator
+
+`BasicRedstoneSim` is the executable redstone simulator.
+
+- The world is immutable. It holds the nodes, a queue of scheduled
+  events, the current tick, and the output log.
+- The nodes are inputs, observers, repeaters, and outputs.
+- Each scheduled event has a target tick, a priority, and a node.
+- One step processes all the events of the current tick. Then it
+  advances the tick.
+- When an output lights, the simulator writes its name to the output
+  log.
+
+The `python/` folder holds an independent Python model of the same
+mechanics. The Python sweeps act as an oracle. They do an independent
+check of each claim before the formal proof. The file
+`python/gen_tests.py` generates the 51 simulation tests in
+`BasicRedstoneSim/Tests.lean`. Git ignores that generated file.
+
+### The spec
+
+A `ChainSpec` has four fields. They are the middle delays, the middle
+priorities, the last delay, and the last priority. The chain structure
+is:
 
 ```
-Input → Observer → [Repeater, delay dᵢ]* → Repeater, delay d_last → Output
+Input → Observer → [middle repeaters] → last Repeater → Output
 ```
 
-`ChainSpec` formalizes the chain. Every delay is *valid*: one of the
-repeater delays 2, 4, 6, 8 ticks.
+The observer adds 2 ticks. The total delay of a chain is:
 
-`simulateWithInsertion c1 c2 t1 t2 pos` simulates two such chains
-started at ticks `t1` and `t2`. The simulation inserts the input pulse
-of chain `c2` at queue position `pos` while chain `c1` processes its
-events. `aActivatesFirst` reads the output log and reports the chain
-that activated first.
+```
+2 + (sum of middle delays) + last delay
+```
 
-The main theorem is `activation_order_independent_of_insertion` in
-`BasicProofs.PrefixChain.Basic`:
+A valid delay is 2, 4, 6, or 8 ticks. A valid priority is -3, -2, or
+-1. A spec is valid when its priorities match its delays, and every
+delay and priority is in range.
 
-> Take two valid prefix chains whose outputs fire on the same tick.
-> The relative activation order of the two outputs does not depend on
-> the insertion position `pos`.
+### Library layout
 
-When two chains land on the same output tick, the one that activates
-first is a function only of the two chain specifications. The queue
-interleaving from the insertion cannot change the order. This
-guarantee lets EID wireless redstone encode ordering through
-activation order.
+```
+Proofs/Model/               the model: specs, chain building, the
+                            simulation driver, and output positions
+Proofs/Clustering/          the clustering theorem
+Proofs/OrderPreservation/   the order preservation theorem
+Proofs/SuffixSubchain/      the suffix clustering and suffix order
+                            preservation theorems
+```
 
-### Group clustering
+### Status
 
-A *group* is a set of chains. The last node of every chain in the
-group fires at the same tick `T`, and all chains in the group have
-equal total delay. The simulation activates a group by firing all of
-its observers directly at tick `T − D`, where `D` is the group delay.
-These choices are arbitrary:
+The four theorems are proved. The `Proofs` library has no `sorry`, no
+`axiom`, and no `admit`.
 
-- the activation order of the groups (`groupOrd`),
-- the firing order of the observers within a group (`withinOrd`),
-- queue insertions between activations (`pos`).
+## The old library: `BasicProofs/`
 
-`BasicProofs.GroupClustering.Basic` states the two capstone theorems:
+`BasicProofs/` holds an older formalization. That formalization uses
+groups of chains. It contains the `PrefixChain` and `GroupClustering`
+developments.
 
-- **Clustering** — `group_output_clustering`: between any two outputs
-  of chains with identical `ChainSpec`, only outputs of that same
-  spec appear.
-- **Order preservation** — `group_order_preservation`: groups A and B
-  both contain chains of spec `sa` and of spec `sb`. If the
-  `sa` instances order A before B, then the `sb` instances also order
-  A before B. The relative order of two groups does not depend on the
-  spec used to observe it.
+This library is deprecated. The repository keeps it for reference only.
+The new `Proofs` library does not import it. Use the `Proofs` library
+for new work.
 
-### Round-robin activation
+## Build
 
-A round-robin group is a list of chains with identical `ChainSpec`.
-All groups that activate on the same tick fire in one atomic
-round-robin batch: round `k` enqueues the observer event of the `k`-th
-chain of every group, in a fixed group order (`groupOrd`); exhausted
-groups drop out; no queue processing happens inside the batch.
+The toolchain is Lean v4.32.0 with Mathlib v4.32.0. The files
+`lean-toolchain` and `lakefile.toml` state these versions.
 
-`groupSimulateRR` is defined as the ordinary group simulation on
-singleton-split groups: every bundle chain becomes a one-chain group,
-and the singletons are activated in the round-robin enumeration order
-with no queue insertion. The two capstone theorems in
-`BasicProofs.GroupClustering.RoundRobinTheorems` follow from the
-group-clustering cores applied to this split system:
+Install elan before the first build. The first build downloads Mathlib.
 
-- **Clustering** — `group_rr_output_clustering`: identical-spec
-  bundle-chain outputs are contiguous in the round-robin output order.
-- **Order preservation** — `group_rr_order_preservation`: for two
-  same-spec bundle chains, the output order is exactly the
-  round-robin activation order (`rrBefore`): round (chain index)
-  first, then position in `groupOrd`. The equivalence is strict:
-  output position `p₁ < p₂` if and only if the first chain activates
-  before the second.
+On this machine, use `lake.exe`. The Linux `lake` wrapper can hang on
+this file system.
+
+- To build the active library, run `lake.exe build Proofs`.
+- To build the whole repository, run `lake.exe build`. This command also
+  builds the deprecated `BasicProofs` library.
 
 ## Repository layout
 
 ```
-BasicRedstoneSim/Basic.lean     the redstone model
-BasicProofs.lean                library root
-BasicProofs/PrefixChain/        prefix chain development (Part01 to
-                                Part17, plus Basic)
-BasicProofs/GroupClustering/    group clustering and round-robin
-                                development (78 named modules, plus
-                                Basic)
-python/                         reference implementation and test
-                                generator
-Main.lean                       executable entry point
+BasicRedstoneSim/   the redstone simulator
+Proofs/             the active library (the four facts)
+BasicProofs/        the older group-based library (deprecated)
+python/             the Python reference model, the sweeps, and the
+                    test generator
+Main.lean           the executable entry point
 ```
-
-## Build and test
-
-Install elan. The build reads the Lean toolchain from
-`lean-toolchain` and fetches Mathlib v4.32.0 on the first build.
-
-1. Build all proofs and the executable: `lake build`. The first build
-   also compiles Mathlib.
-2. Generate the simulation tests: run `python3 python/gen_tests.py`.
-   The script writes `BasicRedstoneSim/Tests.lean`.
-3. To run the tests, add the import of `BasicRedstoneSim.Tests` to
-   `Main.lean`. Then build again. Then run `lake exe main`. Each of
-   the 51 tests prints `✓ PASS`.
-
-`BasicRedstoneSim/Tests.lean` is git-ignored. A fresh checkout builds
-without it, and `main` runs no tests in that case.
-
-If you work in WSL with the repository on a Windows mount, use
-`lake.exe` instead of `lake`. The Linux wrapper can hang on this file
-system.
